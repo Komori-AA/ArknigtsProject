@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import pyautogui as auto
 import time
@@ -16,7 +16,7 @@ ip = config.get('main', 'ip')  # 模拟器端口ip地址
 c = config.get('main', 'c')  # 图片识别率
 Is = config.get('main', 'Is')  # 默认分辨率为1280*720
 
-
+map = ('S4-1.png', '4-8.png', '7-15.png', '1-7.png', 'R8-7.png')
 '''函数部分'''
 # 从模拟器上截图并返回图片
 def screenshot():
@@ -53,12 +53,26 @@ def tap(x, y):  # 点击坐标 x，y
     print(f'点击坐标 {x} {y}')
     os.system(f'adb shell input tap {x} {y}')
 
+# 勾选代理指挥
+def check():
+    p = auto.locate(f'./picture/{Is}/uncheck.png', 'screenshot.png', confidence=c)
+    if p != None:
+        x, y = auto.center(p)
+        tap(x, y)
+        time.sleep(pausetime)
+
 
 # 对图片进行多次选择分析
-def touchlist(imglist, pausetime, stage):
+def touchlist(imglist, pausetime, stage, start=None):
     if stage == 'battling':
         screenshot()
         while True:
+            if time.time() - start > 300:
+                tap(hx, hy)
+                time.sleep(pausetime)
+                tap(hx, hy)
+                time.sleep(pausetime)
+                return None
             for img_name in imglist:
                 if auto.locate(f'./picture/{Is}/{img_name}','screenshot.png', confidence=c) == None:
                     print('战斗进行中...')
@@ -70,51 +84,91 @@ def touchlist(imglist, pausetime, stage):
     else:
         while True:
             screenshot()
+            check()
             for img_name in imglist:
                 p = auto.locate(f'./picture/{Is}/{img_name}', 'screenshot.png', confidence=c)
                 if stage == 'start' and p != None:  # 开始阶段
-                    if img_name == 'start_battle.png': # 点击开始战斗按钮
+                    if img_name == 'start_battle_1.png' or img_name == 'start_battle_2.png': # 点击开始战斗按钮
                         x, y = auto.center(p)
                         tap(x, y)
                         time.sleep(pausetime)
+                        print('开始行动')
                         break
                     elif img_name == 'os.png':  # 点击op按钮
                         x, y = auto.center(p)
                         tap(x, y)
                         time.sleep(pausetime)
+                        print('开始战斗')						
                         return None
-                    elif img_name == 'lzbz.png': # 退出理智不足的画面                   
-                        print('\n----理智不足----')
-                        sys.exit(0)
+                    elif img_name == 'lzbz.png': # 点击碎石                   
+                        x, y = auto.center(p)
+                        tap(x, y)
+                        print('碎石 准备开始战斗')
+                        time.sleep(pausetime)
+                        break
+                    elif img_name in map:
+                        x, y = auto.center(p)
+                        tap(x, y)
+                        print(img_name)
+                        time.sleep(pausetime)
+                        break
                 elif stage == 'end' and p != None :  # 结束阶段
-                    if img_name == 'confidence.png':  # 点击结算画面
+                    if img_name == 'confidence.png' or img_name == 'confidence_1.png':  # 点击结算画面
                         x, y = auto.center(p)
                         tap(x, y)
                         time.sleep(pausetime)
+                        print('战斗结束')						
                         return None
                     elif img_name == 'defeat.png' or img_name == 'jm.png':# 任务失败 和 剿灭作战
                         tap(hx, hy)
                         time.sleep(pausetime)
                         tap(hx, hy)
                         time.sleep(pausetime)
+                        print('任务失败')						
                         return None
-
+                    elif img_name == 'recover.png' or img_name == '400.png' or img_name == 'login.png' or img_name == 'terminal.png' : # 升级
+                        x, y = auto.center(p)
+                        tap(x, y)
+                        time.sleep(pausetime)
+                        print('掉线 '+ img_name)
+                        break
+                    elif img_name == 'last.png':# 重进
+                        tap(hx, hy)
+                        time.sleep(pausetime)
+                        tap(hx, hy)
+                        time.sleep(pausetime)
+                        print('掉线 '+ img_name)
+                        return None
 
 def battle(times):
     i = 0
     n = int(times)
     while i < n:
         i += 1
+        start = time.time()
         print(f'--------第{i}次战斗开始--------')
-        touchlist(('start_battle.png','os.png', 'lzbz.png'), pausetime, 'start')
-        touchlist(('confidence.png','defeat.png','jm.png'),6,'battling')
-        touchlist(("confidence.png", 'defeat.png','jm.png'), pausetime, 'end')
+        touchlist(('start_battle_1.png','start_battle_2.png','os.png', 'lzbz.png') + map, pausetime, 'start')
+        touchlist(('confidence.png', 'confidence_1.png', 'defeat.png','jm.png','recover.png', '400.png', 'login.png', 'terminal.png', 'last.png', '0.png'),6,'battling', start=start)
+        touchlist(("confidence.png", 'confidence_1.png', 'defeat.png','jm.png','recover.png', '400.png', 'login.png', 'terminal.png', 'last.png', '0.png'), pausetime, 'end')
         print(f"---------第{i}次战斗结束--------")
         time.sleep(pausetime)
-        while  auto.locate(f'./picture/{Is}/start_battle.png','screenshot.png', confidence=c) == None:
+        screenshot()
+        while auto.locate(f'./picture/{Is}/start_battle_1.png','screenshot.png', confidence=c) == None and auto.locate(f'./picture/{Is}/start_battle_2.png','screenshot.png', confidence=c) == None:
             screenshot()
             print('等待开始按钮...')
             time.sleep(1)
+            p = auto.locate(f'./picture/{Is}/last.png', 'screenshot.png', confidence=c)
+            if p != None:
+                x, y = auto.center(p)
+                tap(x, y)
+                time.sleep(1)
+            if time.time() - start > 180:
+                tap(hx, hy)
+                time.sleep(pausetime)
+        end = time.time()
+        if end - start < 30:
+            i -= 1
+
 
 
 
@@ -141,5 +195,6 @@ elif key == "f2":
             times = input("请输入次数")
             battle(times)
             break
-        except:
+        except e:
+            print(e)
             print('请输入正确的值')
